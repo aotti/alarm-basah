@@ -12,5 +12,10 @@ note: alat semprotnya adu nasib bjir, kalo gk kena air bisa rusak
 - Relay 1 Channel 
 - Modul Atomizer Humidifier Mist Maker
 
-## rangkaian kabel
+## # rangkaian kabel
+- GND = hitam
+- VCC = merah
+- Digital/Analog = biru
+- SDA/SCL = putih
+
 <img src="https://github.com/aotti/alarm-basah/blob/main/docs/IOT cable circuit.jpg" alt="iot-cable-circuit" width="500" />
