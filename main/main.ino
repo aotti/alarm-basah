@@ -1,15 +1,19 @@
 #include <LiquidCrystal_I2C.h> 
 
 // Inisialisasi LCD pada alamat I2C 0x27, dengan ukuran 16 kolom dan 2 baris
-LiquidCrystal_I2C lcd(0x27, 16, 2); //[cite: 3]
-const int RELAY_PIN = 12; // Pin Digital ke IN relay[cite: 3]
-const unsigned long DURASI_MIST_MS = 3000; // Durasi semprotan (3 detik)[cite: 3]
+LiquidCrystal_I2C lcd(0x27, 16, 2); //
+
+// Definisi untuk mist maker
+const int RELAY_PIN = A3; // Pin Digital ke IN relay
+const unsigned long DURASI_MIST_TEST = 3000; // semprot 3 detik
+const unsigned long DURASI_MIST_ALARM = 7000; // semprot 7 detik
+void semprotMistMaker(unsigned long durasi);
 
 // Definisi pin keypad pada Arduino Nano
-const int pinTombol1 = 11; // Keypad Pin 8
-const int pinTombol2 = 10; // Keypad Pin 9
-const int pinTombol3 = 9; // Keypad Pin 10
-const int pinTombol4 = 8; // Keypad Pin 11
+const int pinTombol1 = 7; 
+const int pinTombol2 = 6; 
+const int pinTombol3 = 5; 
+const int pinTombol4 = 4; 
 
 // Status Mode Edit
 bool isEditing = false;
@@ -41,13 +45,12 @@ const byte font2x2[10][4] = {
   {4, 5, 7, 3}         // 9: Kotak atas dengan kail di bawah
 };
 
+// Definisi untuk waktu
 // Mulai dari 12:00:00
 int jam = 12;
 int menit = 0;
 int detik = 0;
-
 unsigned long waktuSebelumnya = 0;
-const long interval = 1000; // Update setiap 1000 ms (1 detik)
 
 void setup() {
   // MODUL KEYPAD
@@ -62,34 +65,24 @@ void setup() {
   Serial.println("=== Tes Keypad 1x4 Siap ===");
 
   // MODUL LCD
-  lcd.init();           // Inisialisasi modul LCD[cite: 3]
-  lcd.backlight();      // Menyalakan lampu latar (backlight) LCD[cite: 3]
+  lcd.init();           // Inisialisasi modul LCD
+  lcd.backlight();      // Menyalakan lampu latar (backlight) LCD
   // Daftarkan karakter kustom ke memori LCD
   for (int i = 0; i < 8; i++) {
     lcd.createChar(i, customChar[i]);
-    delay(15); // Mencegah karakter index 4-7 menjadi garis terdistorsi
   }
   lcd.clear();
 
-  // // Setup untuk input relay (pin IN)[cite: 3]
-  // pinMode(RELAY_PIN, OUTPUT); //[cite: 3]
+  // Setup untuk input relay (pin IN)
+  pinMode(RELAY_PIN, OUTPUT); 
 
-  // // Memastikan relay posisi mati saat awal nyala (HIGH = OFF)[cite: 3]
-  // digitalWrite(RELAY_PIN, HIGH); //[cite: 3]
+  // Memastikan relay posisi mati saat awal nyala (HIGH = OFF)
+  digitalWrite(RELAY_PIN, HIGH); 
 
-  // // Pesan Selamat Datang di LCD[cite: 3]
-  // lcd.setCursor(0, 0); //[cite: 3]
-  // lcd.print("Sistem Alarm");
-  // lcd.setCursor(0, 1); //[cite: 3]
-  // lcd.print("Tes Semprotan...");
+  delay(1000); // Jeda 1 detik persiapan
 
-  // delay(1000); // Jeda 1 detik persiapan[cite: 3]
-
-  // // Nyalakan Mist Maker sebentar untuk pengujian awal[cite: 3]
-  // digitalWrite(RELAY_PIN, LOW); //[cite: 3]
-  // delay(DURASI_MIST_MS); //[cite: 3]
-  // digitalWrite(RELAY_PIN, HIGH); // Matikan kembali[cite: 3]
-
+  // Nyalakan Mist Maker sebentar untuk pengujian awal
+  semprotMistMaker(DURASI_MIST_TEST);
 }
 
 void loop() {
@@ -100,6 +93,7 @@ void loop() {
 
   // Jika tidak sedang diedit, jalankan waktu otomatis
   if (!isEditing) {
+    // Update waktu tiap 1 detik
     if (waktuSekarang - waktuSebelumnya >= 1000) {
       waktuSebelumnya = waktuSekarang;
 
@@ -107,6 +101,16 @@ void loop() {
       if (detik >= 60) { detik = 0; menit++; }
       if (menit >= 60) { menit = 0; jam++; }
       if (jam >= 24)   { jam = 0; }
+
+      // Pengecekan Jadwal Semprot Otomatis (05:30:00 & 15:00:00)
+      if (detik == 0) {
+        // Semprot pada jam 5:30 dan 15:00
+        if (jam == 5 && menit == 30) {
+          semprotMistMaker(DURASI_MIST_ALARM);
+        } else if(jam == 15 && menit == 0) {
+          semprotMistMaker(DURASI_MIST_TEST);
+        }
+      }
     }
   }
 
@@ -195,4 +199,22 @@ void tampilkanJamBesar() {
     lcd.setCursor(15, 0); lcd.print(" ");
     lcd.setCursor(15, 1); lcd.print(" ");
   }
+}
+
+void semprotMistMaker(unsigned long durasi) {
+  digitalWrite(RELAY_PIN, LOW); 
+  delay(durasi); 
+  digitalWrite(RELAY_PIN, HIGH); // Matikan kembali
+
+  // Kompensasi penambahan detik agar jam tidak tertinggal akibat delay()
+  detik += (durasi / 1000);
+  if (detik >= 60) {
+    detik %= 60;
+    menit++;
+    if (menit >= 60) {
+      menit = 0;
+      jam = (jam + 1) % 24;
+    }
+  }
+  waktuSebelumnya = millis(); // Synchronize ulang waktu millis
 }
